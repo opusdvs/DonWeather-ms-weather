@@ -54,10 +54,12 @@
 * **Метод**: POST
 * **Описание**: Регистрирует новые погодные данные из внешнего API и сохраняет их в базу данных.
 
-Пример запроса:
+Пример запроса с JSON телом:
 
 ```bash
-curl -X POST "http://localhost:8080/weather/register?q=Amsterdam&lang=nl&days=3"
+curl -X POST "http://localhost:8080/weather/register" \
+  -H "Content-Type: application/json" \
+  -d '{"q": "Amsterdam", "lang": "nl", "days": "3"}'
 ```
 
 ## Структура проекта
@@ -75,4 +77,3 @@ curl -X POST "http://localhost:8080/weather/register?q=Amsterdam&lang=nl&days=3"
 ## Лицензия
 
 Проект используется под лицензией **BSL-1.0** (Business Source License). Подробности в файле `LICENSE`.
-
