@@ -1,0 +1,45 @@
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: my_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: weather
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - weather_network
+
+  app:
+    build: .
+    container_name: weather_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - DSN=postgres://myuser:mypassword@postgres:5432/weather?sslmode=disable
+    networks:
+      - weather_network
+
+  frontend:
+    image: donweather-front
+    container_name: weather_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"  # только фронтенд наружу
+    depends_on:
+      - app
+    networks:
+      - weather_network
+
+networks:
+  weather_network:
+    driver: bridge
+
+volumes:
+  pgdata:
