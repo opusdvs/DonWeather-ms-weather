@@ -1,9 +1,11 @@
 package delivery
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/opusdvs/DonWeather-ms-weather/internal/usecase"
 )
@@ -19,7 +21,8 @@ func NewWeatherHandler(svc *usecase.WeatherServie) WeatherHTTPHandler {
 }
 
 func (wh *weatherHandler) Register(w http.ResponseWriter, r *http.Request) {
-
+	ctx, cansel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cansel()
 	var reqBody WeatherRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
@@ -27,7 +30,7 @@ func (wh *weatherHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	weather, err := wh.svc.FeatchAndSaveWeather(reqBody.Q, reqBody.Lang, reqBody.Days)
+	weather, err := wh.svc.FeatchAndSaveWeather(ctx, reqBody.Q, reqBody.Lang, reqBody.Days)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to fetch/save weather: %v", err), http.StatusInternalServerError)
 		return

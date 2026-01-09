@@ -1,19 +1,19 @@
 package usecase
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/opusdvs/DonWeather-ms-weather/internal/domain"
 )
 
 type WeatherAction interface {
-	Save(*domain.Weather) error
-	Delete(id string) error
+	Save(context.Context, *domain.Weather) error
+	Delete(context.Context, string) error
 }
 
 type WeatherServie struct {
@@ -26,7 +26,7 @@ func NewWeatherServie(weather WeatherAction) *WeatherServie {
 	}
 }
 
-func (ws *WeatherServie) FeatchAndSaveWeather(q, lang, days string) (*domain.Weather, error) {
+func (ws *WeatherServie) FeatchAndSaveWeather(ctx context.Context, q, lang, days string) (*domain.Weather, error) {
 	baseUrl := "https://api.weatherapi.com/v1/forecast.json"
 	u, err := url.Parse(baseUrl)
 	if err != nil {
@@ -38,13 +38,16 @@ func (ws *WeatherServie) FeatchAndSaveWeather(q, lang, days string) (*domain.Wea
 	query.Set("lang", lang)
 	query.Set("days", days)
 	u.RawQuery = query.Encode()
-	client := &http.Client{
-		Timeout: 10 * time.Second,
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
-	resp, err := client.Get(u.String())
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("тут")
 		return nil, err
 	}
 
@@ -57,14 +60,13 @@ func (ws *WeatherServie) FeatchAndSaveWeather(q, lang, days string) (*domain.Wea
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("тут 3")
 		return nil, err
 	}
 	var weather domain.Weather
 	if err := json.Unmarshal(data, &weather); err != nil {
 		return nil, err
 	}
-	if err := ws.weather.Save(&weather); err != nil {
+	if err := ws.weather.Save(ctx, &weather); err != nil {
 		return nil, err
 	}
 
