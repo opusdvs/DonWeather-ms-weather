@@ -7,21 +7,26 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/opusdvs/DonWeather-ms-weather/internal/domain"
 )
 
 type WeatherService struct {
 	weatherRepo domain.WeatherRepository
+	apiKey      string
+	httpClient  *http.Client
 }
 
-func NewWeatherService(weatherRepo domain.WeatherRepository) *WeatherService {
+func NewWeatherService(weatherRepo domain.WeatherRepository, apiKey string) *WeatherService {
 	return &WeatherService{
 		weatherRepo: weatherRepo,
+		apiKey:      apiKey,
+		httpClient:  &http.Client{},
 	}
 }
 
-func (ws *WeatherService) FetchAndSaveWeather(ctx context.Context, q, lang, days string) (*domain.Weather, error) {
+func (ws *WeatherService) FetchAndSaveWeather(ctx context.Context, q, lang string, days int) (*domain.Weather, error) {
 	baseUrl := "https://api.weatherapi.com/v1/forecast.json"
 	u, err := url.Parse(baseUrl)
 	if err != nil {
@@ -29,9 +34,9 @@ func (ws *WeatherService) FetchAndSaveWeather(ctx context.Context, q, lang, days
 	}
 	query := u.Query()
 	query.Set("q", q)
-	query.Set("key", "cd3200bf0f914528862150404260801")
+	query.Set("key", ws.apiKey)
 	query.Set("lang", lang)
-	query.Set("days", days)
+	query.Set("days", strconv.Itoa(days))
 	u.RawQuery = query.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -39,9 +44,7 @@ func (ws *WeatherService) FetchAndSaveWeather(ctx context.Context, q, lang, days
 		return nil, err
 	}
 
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := ws.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

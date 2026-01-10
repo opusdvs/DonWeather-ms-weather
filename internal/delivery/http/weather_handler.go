@@ -3,20 +3,22 @@ package delivery
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/opusdvs/DonWeather-ms-weather/internal/usecase"
 )
 
 type weatherHandler struct {
-	svc usecase.WeatherService
+	svc *usecase.WeatherService
 }
 
 func NewWeatherHandler(svc *usecase.WeatherService) WeatherHTTPHandler {
 	return &weatherHandler{
-		svc: *svc,
+		svc: svc,
 	}
 }
 
@@ -26,7 +28,12 @@ func (wh *weatherHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var reqBody WeatherRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid JSON: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := ValidateWeatherRequest(reqBody); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -38,13 +45,20 @@ func (wh *weatherHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(weather)
+	if err := json.NewEncoder(w).Encode(weather); err != nil {
+		http.Error(w, fmt.Sprintf("failed to encode response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func CorsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		corsOrigin := os.Getenv("CORS_ORIGIN")
+		if corsOrigin == "" {
+			corsOrigin = "*"
+		}
 		// Разрешаем конкретный origin frontend
-		w.Header().Set("Access-Control-Allow-Origin", "http://185.196.117.162:3000")
+		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -56,4 +70,17 @@ func CorsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func ValidateWeatherRequest(reqBody WeatherRequest) error {
+	if reqBody.Q == "" {
+		return errors.New("field 'q' is required")
+	}
+	if reqBody.Lang == "" {
+		return errors.New("field 'lang' is required")
+	}
+	if reqBody.Days < 0 || reqBody.Days > 14 { // 0 не пройдет валидацию, так как Days int
+		return errors.New("field 'days' must be between 0 and 14")
+	}
+	return nil
 }

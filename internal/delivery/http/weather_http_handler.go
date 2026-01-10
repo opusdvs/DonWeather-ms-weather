@@ -9,5 +9,5 @@ type WeatherHTTPHandler interface {
 type WeatherRequest struct {
 	Q    string `json:"q"`
 	Lang string `json:"lang"`
-	Days string `json:"days"`
+	Days int    `json:"days"`
 }

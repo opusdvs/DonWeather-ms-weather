@@ -18,10 +18,13 @@ import (
 )
 
 func main() {
-	//dsn := "host=localhost user=myuser password=mypassword dbname=weather port=5432 sslmode=disable"
 	dsn := os.Getenv("DSN")
 	if dsn == "" {
 		dsn = "postgres://myuser:mypassword@localhost:5432/weather?sslmode=disable"
+	}
+	apiKey := os.Getenv("WEATHER_API_KEY")
+	if apiKey == "" {
+		log.Fatal("WEATHER_API_KEY environment variable is required")
 	}
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
@@ -35,7 +38,7 @@ func main() {
 	}
 
 	repo := repository.NewPostgresWeatherRepository(db)
-	act := usecase.NewWeatherService(repo)
+	act := usecase.NewWeatherService(repo, apiKey)
 	handler := delivery.NewWeatherHandler(act)
 
 	http.Handle("/weather/register", delivery.CorsMiddleware(http.HandlerFunc(handler.Register)))
