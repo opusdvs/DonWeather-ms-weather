@@ -16,17 +16,17 @@ type WeatherAction interface {
 	Delete(context.Context, string) error
 }
 
-type WeatherServie struct {
+type WeatherService struct {
 	weather WeatherAction
 }
 
-func NewWeatherServie(weather WeatherAction) *WeatherServie {
-	return &WeatherServie{
+func NewWeatherService(weather WeatherAction) *WeatherService {
+	return &WeatherService{
 		weather: weather,
 	}
 }
 
-func (ws *WeatherServie) FeatchAndSaveWeather(ctx context.Context, q, lang, days string) (*domain.Weather, error) {
+func (ws *WeatherService) FetchAndSaveWeather(ctx context.Context, q, lang, days string) (*domain.Weather, error) {
 	baseUrl := "https://api.weatherapi.com/v1/forecast.json"
 	u, err := url.Parse(baseUrl)
 	if err != nil {

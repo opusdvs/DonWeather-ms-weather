@@ -35,7 +35,7 @@ func main() {
 	}
 
 	repo := repository.NewPostgresWeatherRepository(db)
-	act := usecase.NewWeatherServie(repo)
+	act := usecase.NewWeatherService(repo)
 	handler := delivery.NewWeatherHandler(act)
 
 	http.Handle("/weather/register", delivery.CorsMiddleware(http.HandlerFunc(handler.Register)))

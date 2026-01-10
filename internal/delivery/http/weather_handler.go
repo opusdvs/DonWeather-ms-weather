@@ -11,18 +11,18 @@ import (
 )
 
 type weatherHandler struct {
-	svc usecase.WeatherServie
+	svc usecase.WeatherService
 }
 
-func NewWeatherHandler(svc *usecase.WeatherServie) WeatherHTTPHandler {
+func NewWeatherHandler(svc *usecase.WeatherService) WeatherHTTPHandler {
 	return &weatherHandler{
 		svc: *svc,
 	}
 }
 
 func (wh *weatherHandler) Register(w http.ResponseWriter, r *http.Request) {
-	ctx, cansel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cansel()
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
 	var reqBody WeatherRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
@@ -30,7 +30,7 @@ func (wh *weatherHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	weather, err := wh.svc.FeatchAndSaveWeather(ctx, reqBody.Q, reqBody.Lang, reqBody.Days)
+	weather, err := wh.svc.FetchAndSaveWeather(ctx, reqBody.Q, reqBody.Lang, reqBody.Days)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to fetch/save weather: %v", err), http.StatusInternalServerError)
 		return
