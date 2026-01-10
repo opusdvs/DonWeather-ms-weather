@@ -11,7 +11,7 @@ type PostgresWeatherRepository struct {
 	db *sql.DB
 }
 
-func NewPostgresWeatherRepository(db *sql.DB) *PostgresWeatherRepository {
+func NewPostgresWeatherRepository(db *sql.DB) domain.WeatherRepository {
 	return &PostgresWeatherRepository{
 		db: db,
 	}

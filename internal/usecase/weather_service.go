@@ -11,18 +11,13 @@ import (
 	"github.com/opusdvs/DonWeather-ms-weather/internal/domain"
 )
 
-type WeatherAction interface {
-	Save(context.Context, *domain.Weather) error
-	Delete(context.Context, string) error
-}
-
 type WeatherService struct {
-	weather WeatherAction
+	weatherRepo domain.WeatherRepository
 }
 
-func NewWeatherService(weather WeatherAction) *WeatherService {
+func NewWeatherService(weatherRepo domain.WeatherRepository) *WeatherService {
 	return &WeatherService{
-		weather: weather,
+		weatherRepo: weatherRepo,
 	}
 }
 
@@ -66,7 +61,7 @@ func (ws *WeatherService) FetchAndSaveWeather(ctx context.Context, q, lang, days
 	if err := json.Unmarshal(data, &weather); err != nil {
 		return nil, err
 	}
-	if err := ws.weather.Save(ctx, &weather); err != nil {
+	if err := ws.weatherRepo.Save(ctx, &weather); err != nil {
 		return nil, err
 	}
 

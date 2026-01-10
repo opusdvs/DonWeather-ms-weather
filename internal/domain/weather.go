@@ -1,5 +1,7 @@
 package domain
 
+import "context"
+
 type Weather struct {
 	Location struct {
 		Name string `json:"name"`
@@ -15,4 +17,9 @@ type Weather struct {
 			Text string `json:"text"`
 		} `json:"condition"`
 	} `json:"current"`
+}
+
+type WeatherRepository interface {
+	Save(context.Context, *Weather) error
+	Delete(context.Context, string) error
 }
