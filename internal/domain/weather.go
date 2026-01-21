@@ -17,6 +17,17 @@ type Weather struct {
 			Text string `json:"text"`
 		} `json:"condition"`
 	} `json:"current"`
+	Forecast struct {
+		Forecastday []struct {
+			Date string `json:"date"`
+			Day  struct {
+				Maxtemp_c float64 `json:"maxtemp_c"`
+				Condition struct {
+					Text string `json:"text"`
+				} `json:"condition"`
+			} `json:"day"`
+		} `json:"forecastday"`
+	} `json:"forecast"`
 }
 
 type WeatherRepository interface {

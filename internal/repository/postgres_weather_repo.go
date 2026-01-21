@@ -8,12 +8,14 @@ import (
 )
 
 type PostgresWeatherRepository struct {
-	db *sql.DB
+	db     *sql.DB
+	logger domain.Logger
 }
 
-func NewPostgresWeatherRepository(db *sql.DB) domain.WeatherRepository {
+func NewPostgresWeatherRepository(db *sql.DB, logger domain.Logger) domain.WeatherRepository {
 	return &PostgresWeatherRepository{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -32,12 +34,26 @@ func (p *PostgresWeatherRepository) Save(ctx context.Context, weather *domain.We
 		weather.Current.WindKph,
 		weather.Current.Condition.Text,
 	)
-	return err
+	if err != nil {
+		p.logger.Error(ctx, "failed to save weather", domain.Fields{
+			Key:   "error",
+			Value: err.Error(),
+		})
+		return err
+	}
+	return nil
 }
 
 func (p *PostgresWeatherRepository) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM weather WHERE id=$1`
 	_, err := p.db.ExecContext(ctx, query, id)
 
-	return err
+	if err != nil {
+		p.logger.Error(ctx, "failed to delete weather", domain.Fields{
+			Key:   "error",
+			Value: err.Error(),
+		})
+		return err
+	}
+	return nil
 }

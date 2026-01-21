@@ -1,13 +1,11 @@
 package delivery
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"time"
+	"strconv"
 
 	"github.com/opusdvs/DonWeather-ms-weather/internal/usecase"
 )
@@ -23,8 +21,7 @@ func NewWeatherHandler(svc *usecase.WeatherService) WeatherHTTPHandler {
 }
 
 func (wh *weatherHandler) Register(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
+	ctx := r.Context()
 	var reqBody WeatherRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
@@ -51,27 +48,6 @@ func (wh *weatherHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func CorsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		corsOrigin := os.Getenv("CORS_ORIGIN")
-		if corsOrigin == "" {
-			corsOrigin = "*"
-		}
-		// Разрешаем конкретный origin frontend
-		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		// Обрабатываем preflight OPTIONS
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func ValidateWeatherRequest(reqBody WeatherRequest) error {
 	if reqBody.Q == "" {
 		return errors.New("field 'q' is required")
@@ -79,7 +55,11 @@ func ValidateWeatherRequest(reqBody WeatherRequest) error {
 	if reqBody.Lang == "" {
 		return errors.New("field 'lang' is required")
 	}
-	if reqBody.Days < 0 || reqBody.Days > 14 { // 0 не пройдет валидацию, так как Days int
+	days, err := strconv.Atoi(reqBody.Days)
+	if err != nil {
+		return errors.New("field 'days' must be a number")
+	}
+	if days < 0 || days > 14 { // 0 не пройдет валидацию, так как Days int
 		return errors.New("field 'days' must be between 0 and 14")
 	}
 	return nil
