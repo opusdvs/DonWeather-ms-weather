@@ -18,9 +18,15 @@ spec:
       labels:
         {{- include "donweather-ms-weather.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {{- if .Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
+        {{- range .Values.imagePullSecrets }}
+        {{- if kindIs "string" . }}
+        - name: {{ . }}
+        {{- else }}
+        - name: {{ .name }}
+        {{- end }}
+        {{- end }}
       {{- end }}
       serviceAccountName: default
       {{- with .Values.podSecurityContext }}
