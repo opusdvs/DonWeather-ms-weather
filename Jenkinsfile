@@ -1,6 +1,8 @@
 pipeline {
     agent {
         kubernetes {
+            connectTimeout 300
+            idleMinutes 10
             yaml """
 apiVersion: v1
 kind: Pod
@@ -29,7 +31,7 @@ spec:
       privileged: true
     volumeMounts:
     - name: docker-sock
-      mountPath: /var/run/docker.sock
+      mountPath: /var/run
     - name: docker-storage
       mountPath: /var/lib/docker
     - name: workspace-volume
@@ -51,7 +53,7 @@ spec:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
     - name: docker-sock
-      mountPath: /var/run/docker.sock
+      mountPath: /var/run
     resources:
       requests:
         memory: "256Mi"
