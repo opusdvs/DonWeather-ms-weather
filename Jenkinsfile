@@ -134,14 +134,23 @@ spec:
                         withCredentials([usernamePassword(credentialsId: 'docker-registry', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                             sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} ${DOCKER_REGISTRY}'
                             sh 'docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}'
+
+                            def digest = sh(
+                                script: 'docker inspect --format="{{index .RepoDigests 0}}" ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} | cut -d "@" -f 2',
+                                returnStdout: true
+                            ).trim()
+                            env.DOCKER_IMAGE_HASH = digest
                         }
                     }
                 }
             }
         }
     }
-}
-
-post {
-    currentBuild.description = "Docker Image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    post {
+        success {
+            script {
+                currentBuild.description = "Docker Image: ${env.DOCKER_IMAGE_HASH}"
+            }
+        }
+    }
 }
