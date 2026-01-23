@@ -125,5 +125,18 @@ spec:
                 }
             }
         }
+
+        stage('Push Docker Image') {
+            steps {
+                container('docker-cli') {
+                    script {
+                        withCredentials([usernamePassword(credentialsId: 'docker-registry', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                            sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} buildbyte-container-registry.registry.twcstorage.ru'
+                            sh 'docker push buildbyte-container-registry.registry.twcstorage.ru/${IMAGE_NAME}:${IMAGE_TAG}'
+                        }
+                    }
+                }
+            }
+        }
     }
 }
