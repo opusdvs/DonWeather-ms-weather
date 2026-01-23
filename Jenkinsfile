@@ -1,40 +1,125 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: go
+    image: golang:1.24-alpine
+    command: ['cat']
+    tty: true
+    workingDir: /home/jenkins/agent
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+  
+  - name: docker
+    image: docker:dind
+    command: ['dockerd-entrypoint.sh']
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - name: docker-sock
+      mountPath: /var/run/docker.sock
+    - name: docker-storage
+      mountPath: /var/lib/docker
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+  
+  - name: docker-cli
+    image: docker:cli
+    command: ['cat']
+    tty: true
+    workingDir: /home/jenkins/agent
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+    - name: docker-sock
+      mountPath: /var/run/docker.sock
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+  
+  volumes:
+  - name: workspace-volume
+    emptyDir: {}
+  - name: docker-sock
+    emptyDir: {}
+  - name: docker-storage
+    emptyDir: {}
+"""
+        }
+    }
 
     environment {
         IMAGE_NAME = 'donweather-ms-weather'
         IMAGE_TAG = "dev"
+        DOCKER_HOST = 'unix:///var/run/docker.sock'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                container('go') {
+                    checkout scm
+                }
             }
         }
 
         stage('Go: Format Check') {
             steps {
-                sh 'gofmt -l . | grep -v vendor || true'
+                container('go') {
+                    sh 'gofmt -l . | grep -v vendor || true'
+                }
             }
         }
 
         stage('Go: Vet') {
             steps {
-                sh 'go vet ./...'
+                container('go') {
+                    sh 'go vet ./...'
+                }
             }
         }
 
         stage('Go: Test') {
             steps {
-                sh 'go test ./...'
+                container('go') {
+                    sh 'go test ./...'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
+                container('docker-cli') {
+                    script {
+                        sh '''
+                            # Ждем запуска Docker daemon
+                            timeout 60 sh -c 'until docker info; do sleep 1; done'
+                            docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                        '''
+                    }
                 }
             }
         }
