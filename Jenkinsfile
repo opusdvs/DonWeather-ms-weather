@@ -77,6 +77,7 @@ spec:
         IMAGE_NAME = 'donweather-ms-weather'
         IMAGE_TAG = "dev"
         DOCKER_HOST = 'unix:///var/run/docker.sock'
+        DOCKER_REGISTRY = 'buildbyte-container-registry.registry.twcstorage.ru'
     }
 
     stages {
@@ -119,7 +120,7 @@ spec:
                         sh '''
                             # Ждем запуска Docker daemon
                             timeout 60 sh -c 'until docker info; do sleep 1; done'
-                            docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                            docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} .
                         '''
                     }
                 }
@@ -131,8 +132,8 @@ spec:
                 container('docker-cli') {
                     script {
                         withCredentials([usernamePassword(credentialsId: 'docker-registry', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                            sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} buildbyte-container-registry.registry.twcstorage.ru'
-                            sh 'docker push buildbyte-container-registry.registry.twcstorage.ru/${IMAGE_NAME}:${IMAGE_TAG}'
+                            sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} ${DOCKER_REGISTRY}'
+                            sh 'docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}'
                         }
                     }
                 }
