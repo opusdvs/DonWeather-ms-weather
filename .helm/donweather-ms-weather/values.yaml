@@ -8,7 +8,7 @@ image:
   digest: "sha256:c74fed06074160f84baddd5423b88f1047f86d952a60161937e7e4b4946ba5c2"
 
 imagePullSecrets:
-  - docker-registry-credentials
+  - name: docker-registry-credentials
 nameOverride: ""
 fullnameOverride: ""
 
