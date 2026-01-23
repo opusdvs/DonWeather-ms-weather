@@ -141,3 +141,7 @@ spec:
         }
     }
 }
+
+post {
+    currentBuild.description = "Docker Image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+}
