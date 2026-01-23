@@ -10,10 +10,10 @@ spec:
   parentRefs:
     - kind: Gateway
       name: {{ .Values.httpRoute.gatewayRef.name }}
-      {{- if .Values.httpRoute.gatewayRef.namespace }}
+      {{- if and .Values.httpRoute.gatewayRef.namespace (ne .Values.httpRoute.gatewayRef.namespace "") }}
       namespace: {{ .Values.httpRoute.gatewayRef.namespace }}
       {{- end }}
-  {{- if .Values.httpRoute.hostnames }}
+  {{- if and .Values.httpRoute.hostnames (gt (len .Values.httpRoute.hostnames) 0) }}
   hostnames:
     {{- range .Values.httpRoute.hostnames }}
     - {{ . | quote }}
@@ -30,7 +30,7 @@ spec:
       backendRefs:
         {{- range .backendRefs }}
         - kind: Service
-          name: {{ if .name }}{{ .name }}{{ else }}{{ include "donweather-ms-weather.fullname" $ }}{{ end }}
+          name: {{ if and .name (ne .name "") }}{{ .name }}{{ else }}{{ include "donweather-ms-weather.fullname" $ }}{{ end }}
           port: {{ .port | default $.Values.service.port }}
         {{- end }}
     {{- end }}

@@ -71,14 +71,20 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
+      {{- if ne (toString .) "map[]" }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- end }}
       {{- with .Values.affinity }}
+      {{- if ne (toString .) "map[]" }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- end }}
       {{- with .Values.tolerations }}
+      {{- if gt (len .) 0 }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
