@@ -77,6 +77,29 @@ database:
 # Weather API Key (will be stored in Secret)
 weatherApiKey: ""
 
+# ExternalSecret configuration
+externalSecret:
+  enabled: false
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: "vault-backend"  # Имя ClusterSecretStore (для Vault)
+    kind: "ClusterSecretStore"  # ClusterSecretStore для кластерного доступа
+  target:
+    creationPolicy: "Owner"  # Owner, Merge, None
+  secrets:
+    # Для Vault KV v2:
+    #   - путь: secret/data/path/to/secret (обязателен префикс /data)
+    #   - property: имя поля в JSON объекте секрета
+    dsn:
+      key: "secret/data/donweather/dsn"  # Путь к секрету в Vault (KV v2)
+      property: "dsn"  # Имя свойства в секрете
+    weatherApiKey:
+      key: "secret/data/donweather/weather-api-key"  # Путь к секрету в Vault (KV v2)
+      property: "api-key"  # Имя свойства в секрете
+    corsOrigin:
+      key: "secret/data/donweather/cors-origin"  # Путь к секрету в Vault (KV v2)
+      property: "origin"  # Имя свойства в секрете
+
 # Health check configuration
 livenessProbe:
   httpGet:

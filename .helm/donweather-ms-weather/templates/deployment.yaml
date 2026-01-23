@@ -74,9 +74,15 @@ spec:
                   key: weather-api-key
             - name: CORS_ORIGIN
               valueFrom:
+                {{- if .Values.externalSecret.enabled }}
+                secretKeyRef:
+                  name: {{ include "donweather-ms-weather.fullname" . }}-secret
+                  key: cors-origin
+                {{- else }}
                 configMapKeyRef:
                   name: {{ include "donweather-ms-weather.fullname" . }}-config
                   key: cors-origin
+                {{- end }}
             - name: ENV
               valueFrom:
                 configMapKeyRef:
