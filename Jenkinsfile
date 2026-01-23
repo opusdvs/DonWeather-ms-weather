@@ -1,7 +1,7 @@
 pipeline {
     agent {
         kubernetes {
-            connectTimeout 300
+            slaveConnectTimeout 300
             idleMinutes 10
             yaml """
 apiVersion: v1
