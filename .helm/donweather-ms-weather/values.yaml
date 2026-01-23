@@ -2,18 +2,15 @@
 replicaCount: 2
 
 image:
-  repository: donweather-ms-weather
+  repository: buildbyte-container-registry.registry.twcstorage.ru/donweather-ms-weather
   pullPolicy: IfNotPresent
-  tag: "latest"
+  tag: "dev"
+  digest: "sha256:c74fed06074160f84baddd5423b88f1047f86d952a60161937e7e4b4946ba5c2"
 
-imagePullSecrets: []
+imagePullSecrets:
+  - docker-registry-credentials
 nameOverride: ""
 fullnameOverride: ""
-
-serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
 
 podAnnotations: {}
 
@@ -33,16 +30,21 @@ service:
   port: 8080
   targetPort: 8080
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-    - host: donweather.local
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+# HTTPRoute for Gateway API
+httpRoute:
+  enabled: true
+  gatewayRef:
+    name: "dev-gateway"
+    namespace: ""  # Если пусто, используется namespace приложения
+  hostnames: []  # Пример: ["donweather.example.com"]
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: ""  # Если пусто, используется имя сервиса из chart
+          port: 8080
 
 resources:
   limits:
@@ -51,13 +53,6 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
 
@@ -68,7 +63,7 @@ affinity: {}
 # Environment variables
 env:
   corsOrigin: "*"
-  env: "production"
+  env: "dev"
 
 # Database connection string (will be stored in Secret)
 database:
@@ -100,10 +95,3 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
-
-# ServiceMonitor for Prometheus (optional)
-serviceMonitor:
-  enabled: false
-  interval: 30s
-  scrapeTimeout: 10s
-  labels: {}

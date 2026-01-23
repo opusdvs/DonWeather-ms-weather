@@ -10,33 +10,12 @@ spec:
   
   source:
     repoURL: https://github.com/your-org/DonWeather-ms-weather.git
-    targetRevision: main
-    path: helm/donweather-ms-weather
+    targetRevision: dev
+    path: .helm/donweather-ms-weather
     helm:
       valueFiles:
         - values.yaml
       # Переопределение значений через параметры
-      parameters:
-        - name: replicaCount
-          value: "2"
-        - name: image.repository
-          value: "your-registry/donweather-ms-weather"
-        - name: image.tag
-          value: "latest"
-        - name: database.host
-          value: "postgres-service"
-        - name: database.port
-          value: "5432"
-        - name: database.name
-          value: "weather"
-        - name: database.user
-          value: "myuser"
-        - name: database.sslmode
-          value: "disable"
-        - name: env.corsOrigin
-          value: "*"
-        - name: env.env
-          value: "production"
       # Или используйте values для более сложных структур
       # values: |
       #   replicaCount: 2
@@ -45,8 +24,8 @@ spec:
       #     tag: latest
   
   destination:
-    server: https://kubernetes.default.svc
-    namespace: default
+    name: dev-cluster
+    namespace: donweather
   
   syncPolicy:
     automated:
