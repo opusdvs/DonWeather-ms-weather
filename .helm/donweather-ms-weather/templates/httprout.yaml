@@ -30,7 +30,7 @@ spec:
       backendRefs:
         {{- range .backendRefs }}
         - kind: Service
-          name: {{ .name | default (include "donweather-ms-weather.fullname" $) }}
+          name: {{ if .name }}{{ .name }}{{ else }}{{ include "donweather-ms-weather.fullname" $ }}{{ end }}
           port: {{ .port | default $.Values.service.port }}
         {{- end }}
     {{- end }}
