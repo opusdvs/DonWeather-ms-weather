@@ -6,6 +6,7 @@ image:
   pullPolicy: IfNotPresent
   tag: "dev"
   digest: "sha256:69f7ea0dce9cd76656bd24e9db87f44a423b34d13fd212d6ccd829c08a964c4f"
+  
 
 imagePullSecrets:
   - name: docker-registry-credentials
