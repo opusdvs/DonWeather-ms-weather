@@ -30,6 +30,36 @@ service:
   port: 8080
   targetPort: 8080
 
+# HTTPRoute (Gateway API)
+httpRoute:
+  enabled: true
+  annotations: {}
+  # parentRefs определяют к какому Gateway/Listener прикрепить маршрут.
+  # По умолчанию цепляемся к dev-gateway (HTTPS listener).
+  parentRefs:
+    - name: dev-gateway
+      namespace: default
+      sectionName: https
+  hostnames:
+    - api.donweather.dev.buildbyte.ru
+  pathPrefix: /
+  # Если нужно — можно передать полный массив spec.rules (как в Gateway API).
+  rules: []
+
+  # Redirect HTTP(80) -> HTTPS(443). Важно: укажите parentRefs на HTTP listener (например sectionName: http),
+  # иначе при привязке к HTTPS listener получите redirect-loop.
+  redirectToHttps:
+    enabled: true
+    annotations: {}
+    # parentRefs для HTTP listener (обычно тот же Gateway, но sectionName=http)
+    parentRefs:
+      - name: dev-gateway
+        namespace: default
+        sectionName: http
+    statusCode: 301
+    scheme: https
+    port: 443
+
 resources:
   limits:
     cpu: 500m
