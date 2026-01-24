@@ -34,6 +34,68 @@
    docker compose up -d
    ```
 
+## Создание базы данных
+
+Перед запуском микросервиса необходимо создать базу данных и выполнить миграции.
+
+**1. Подключитесь к PostgreSQL:**
+
+```bash
+# Если PostgreSQL развернут в Kubernetes
+kubectl exec -it <postgres-pod-name> -n <namespace> -- psql -U <db-user> -d postgres
+
+# Или через port-forward
+kubectl port-forward -n <namespace> svc/<postgres-service> 5432:5432
+psql -h localhost -U <db-user> -d postgres
+```
+
+**2. Создайте базу данных:**
+
+```sql
+CREATE DATABASE weather;
+```
+
+**3. Создайте пользователя (если требуется):**
+
+```sql
+CREATE USER weather WITH PASSWORD 'mypassword';
+GRANT ALL PRIVILEGES ON DATABASE weather TO weather;
+\q
+```
+
+**4. Выполните миграции:**
+
+Миграции находятся в директории `migrations/`. Примените их с помощью инструмента миграций (например, golang-migrate):
+
+```bash
+# Пример с golang-migrate
+migrate -path migrations -database "postgres://myuser:mypassword@localhost:5432/weather?sslmode=disable" up
+```
+
+Или используйте psql напрямую:
+
+```bash
+psql -h <db-host> -U <db-user> -d weather -f migrations/000001_create_weather.up.sql
+```
+
+**5. Проверьте создание таблиц:**
+
+```sql
+\c weather
+\dt
+```
+
+Должна быть создана таблица `weather` со следующей структурой:
+- `id` - уникальный идентификатор (BIGINT, автоинкремент)
+- `location_name` - название местоположения (TEXT)
+- `last_updated` - время последнего обновления (TIMESTAMPTZ)
+- `temp_c` - температура в градусах Цельсия (DOUBLE PRECISION)
+- `humidity` - влажность (DOUBLE PRECISION)
+- `pressure_mb` - давление в миллибарах (DOUBLE PRECISION)
+- `wind_kph` - скорость ветра в км/ч (DOUBLE PRECISION)
+- `condition_text` - текстовое описание погодных условий (TEXT)
+- `created_at` - время создания записи (TIMESTAMPTZ, по умолчанию now())
+
 ## Запуск
 
 1. Запустите миграции базы данных (если настроено автоматически).
@@ -86,11 +148,15 @@ curl -X POST "http://localhost:8080/weather/register" \
 
 ### Создание секретов в Vault (KV v2)
 
-Приложение ожидает следующие секреты в Vault:
+Микросервис использует следующие секреты из Vault:
 
-1. **DSN** (строка подключения к PostgreSQL)
-2. **WEATHER_API_KEY** (API ключ для Weather API)
-3. **CORS_ORIGIN** (разрешенные источники для CORS)
+1. **DB_PASSWORD** - пароль для подключения к PostgreSQL
+2. **DB_USER** - пользователь для подключения к PostgreSQL
+3. **DB_HOST** - хост базы данных PostgreSQL
+4. **DB_PORT** - порт базы данных PostgreSQL
+5. **DB_NAME** - имя базы данных PostgreSQL
+6. **CORS_ORIGIN** - разрешенные источники для CORS
+7. **WEATHER_API_KEY** - API ключ для Weather API
 
 ### Создание секретов через kubectl
 
@@ -116,28 +182,60 @@ vault secrets enable -path=secret kv-v2
 **3. Создайте секреты:**
 
 ```bash
-# Создайте секрет для DSN
+# Создайте секрет для DB_PASSWORD
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/dsn \
-  dsn='postgres://user:password@postgres:5432/weather?sslmode=disable'
+vault kv put secret/donweather/db-password \
+  password='your-db-password'
 "
 
-# Создайте секрет для Weather API Key
+# Создайте секрет для DB_USER
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/weather-api-key \
-  api-key='your-weather-api-key-here'
+vault kv put secret/donweather/db-user \
+  user='your-db-user'
 "
 
-# Создайте секрет для CORS Origin
+# Создайте секрет для DB_HOST
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv put secret/donweather/db-host \
+  host='postgres'
+"
+
+# Создайте секрет для DB_PORT
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv put secret/donweather/db-port \
+  port='5432'
+"
+
+# Создайте секрет для DB_NAME
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv put secret/donweather/db-name \
+  name='weather'
+"
+
+# Создайте секрет для CORS_ORIGIN
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
 vault kv put secret/donweather/cors-origin \
   origin='*'
+"
+
+# Создайте секрет для WEATHER_API_KEY
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv put secret/donweather/weather-api-key \
+  api-key='your-weather-api-key-here'
 "
 ```
 
@@ -151,25 +249,53 @@ vault kv put secret/donweather/cors-origin \
 # Получите токен Vault
 VAULT_TOKEN=$(kubectl get secret vault-unseal-keys -n vault -o jsonpath='{.data.vault-root}' | base64 -d)
 
-# Проверка секрета DSN
+# Проверка секрета DB_PASSWORD
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/dsn
+vault kv get secret/donweather/db-password
 "
 
-# Проверка секрета Weather API Key
+# Проверка секрета DB_USER
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/weather-api-key
+vault kv get secret/donweather/db-user
 "
 
-# Проверка секрета CORS Origin
+# Проверка секрета DB_HOST
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv get secret/donweather/db-host
+"
+
+# Проверка секрета DB_PORT
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv get secret/donweather/db-port
+"
+
+# Проверка секрета DB_NAME
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv get secret/donweather/db-name
+"
+
+# Проверка секрета CORS_ORIGIN
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
 vault kv get secret/donweather/cors-origin
+"
+
+# Проверка секрета WEATHER_API_KEY
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv get secret/donweather/weather-api-key
 "
 ```
 

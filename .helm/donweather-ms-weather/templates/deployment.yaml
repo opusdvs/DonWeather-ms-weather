@@ -62,11 +62,31 @@ spec:
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
           env:
-            - name: DSN
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "donweather-ms-weather.fullname" . }}-secret
-                  key: dsn
+                  key: db-password
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "donweather-ms-weather.fullname" . }}-secret
+                  key: db-user
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "donweather-ms-weather.fullname" . }}-secret
+                  key: db-host
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "donweather-ms-weather.fullname" . }}-secret
+                  key: db-port
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "donweather-ms-weather.fullname" . }}-secret
+                  key: db-name
             - name: WEATHER_API_KEY
               valueFrom:
                 secretKeyRef:

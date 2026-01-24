@@ -27,14 +27,31 @@ import (
 
 func main() {
 	logger := infrastructure.NewLoggerService()
-	dsn := os.Getenv("DSN")
-	if dsn == "" {
-		dsn = "postgres://myuser:mypassword@localhost:5432/weather?sslmode=disable"
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		log.Fatal("DB_PASSWORD environment variable is required")
+	}
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		log.Fatal("DB_USER environment variable is required")
+	}
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		log.Fatal("DB_HOST environment variable is required")
+	}
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		log.Fatal("DB_PORT environment variable is required")
+	}
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		log.Fatal("DB_NAME environment variable is required")
 	}
 	apiKey := os.Getenv("WEATHER_API_KEY")
 	if apiKey == "" {
 		log.Fatal("WEATHER_API_KEY environment variable is required")
 	}
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatal(err)

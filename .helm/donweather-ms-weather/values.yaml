@@ -79,10 +79,10 @@ weatherApiKey: ""
 
 # ExternalSecret configuration
 externalSecret:
-  enabled: false
+  enabled: true
   refreshInterval: "1h"
   secretStoreRef:
-    name: "vault-backend"  # Имя ClusterSecretStore (для Vault)
+    name: "vault"  # Имя ClusterSecretStore (для Vault)
     kind: "ClusterSecretStore"  # ClusterSecretStore для кластерного доступа
   target:
     creationPolicy: "Owner"  # Owner, Merge, None
@@ -90,9 +90,21 @@ externalSecret:
     # Для Vault KV v2:
     #   - путь: secret/data/path/to/secret (обязателен префикс /data)
     #   - property: имя поля в JSON объекте секрета
-    dsn:
-      key: "secret/data/donweather/dsn"  # Путь к секрету в Vault (KV v2)
-      property: "dsn"  # Имя свойства в секрете
+    dbPassword:
+      key: "secret/data/donweather/db-password"  # Путь к секрету в Vault (KV v2)
+      property: "password"  # Имя свойства в секрете
+    dbUser:
+      key: "secret/data/donweather/db-user"  # Путь к секрету в Vault (KV v2)
+      property: "user"
+    dbHost:
+      key: "secret/data/donweather/db-host"  # Путь к секрету в Vault (KV v2)
+      property: "host"
+    dbPort:
+      key: "secret/data/donweather/db-port"  # Путь к секрету в Vault (KV v2)
+      property: "port"
+    dbName:
+      key: "secret/data/donweather/db-name"  # Путь к секрету в Vault (KV v2)
+      property: "name"
     weatherApiKey:
       key: "secret/data/donweather/weather-api-key"  # Путь к секрету в Vault (KV v2)
       property: "api-key"  # Имя свойства в секрете
