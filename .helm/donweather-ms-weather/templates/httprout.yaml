@@ -1,26 +1,27 @@
-{{- if .Values.httpRoute.enabled }}
+{{- with .Values.httpRoute }}
+{{- if .enabled }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: {{ include "donweather-ms-weather.fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels:
-    {{- include "donweather-ms-weather.labels" . | nindent 4 }}
+    {{- include "donweather-ms-weather.labels" $ | nindent 4 }}
 spec:
   parentRefs:
     - kind: Gateway
-      name: {{ .Values.httpRoute.gatewayRef.name }}
-      {{- if and .Values.httpRoute.gatewayRef.namespace (ne .Values.httpRoute.gatewayRef.namespace "") }}
-      namespace: {{ .Values.httpRoute.gatewayRef.namespace }}
+      name: {{ .gatewayRef.name }}
+      {{- if and .gatewayRef.namespace (ne .gatewayRef.namespace "") }}
+      namespace: {{ .gatewayRef.namespace }}
       {{- end }}
-  {{- if and .Values.httpRoute.hostnames (gt (len .Values.httpRoute.hostnames) 0) }}
+  {{- if and .hostnames (gt (len .hostnames) 0) }}
   hostnames:
-    {{- range .Values.httpRoute.hostnames }}
+    {{- range .hostnames }}
     - {{ . | quote }}
     {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.httpRoute.rules }}
+    {{- range .rules }}
     - matches:
         {{- range .matches }}
         - path:
@@ -34,4 +35,5 @@ spec:
           port: {{ .port | default $.Values.service.port }}
         {{- end }}
     {{- end }}
+{{- end }}
 {{- end }}

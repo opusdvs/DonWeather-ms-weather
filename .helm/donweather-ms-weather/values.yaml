@@ -30,22 +30,6 @@ service:
   port: 8080
   targetPort: 8080
 
-# HTTPRoute for Gateway API
-httpRoute:
-  enabled: true
-  gatewayRef:
-    name: "dev-gateway"
-    namespace: ""  # Если пусто, используется namespace приложения
-  hostnames: []  # Пример: ["donweather.example.com"]
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: ""  # Если пусто, используется имя сервиса из chart
-          port: 8080
-
 resources:
   limits:
     cpu: 500m

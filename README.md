@@ -52,14 +52,25 @@ psql -h localhost -U <db-user> -d postgres
 **2. Создайте базу данных:**
 
 ```sql
-CREATE DATABASE weather;
+-- (рекомендуется) сначала создайте пользователя
+CREATE USER weather WITH PASSWORD 'mypassword';
+
+-- создайте базу и назначьте владельца
+CREATE DATABASE weather OWNER weather;
 ```
 
-**3. Создайте пользователя (если требуется):**
+**3. Выдайте права на схему `public` (нужно для миграций):**
 
 ```sql
-CREATE USER weather WITH PASSWORD 'mypassword';
-GRANT ALL PRIVILEGES ON DATABASE weather TO weather;
+-- подключитесь к базе
+\c weather
+
+-- важно: миграции создают таблицу public.schema_migrations, поэтому нужен CREATE/USAGE
+GRANT USAGE, CREATE ON SCHEMA public TO weather;
+
+-- (опционально) права на будущие таблицы/последовательности в public
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO weather;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO weather;
 \q
 ```
 
@@ -69,7 +80,7 @@ GRANT ALL PRIVILEGES ON DATABASE weather TO weather;
 
 ```bash
 # Пример с golang-migrate
-migrate -path migrations -database "postgres://myuser:mypassword@localhost:5432/weather?sslmode=disable" up
+migrate -path migrations -database "postgres://weather:mypassword@localhost:5432/weather?sslmode=disable" up
 ```
 
 Или используйте psql напрямую:
