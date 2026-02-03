@@ -147,194 +147,201 @@ curl -X POST "http://localhost:8080/weather/register" \
 
 Для разработки используйте стандартные инструменты Go. Убедитесь, что база данных запущена перед запуском приложения.
 
-## Управление секретами через Vault
+## Заведение секретов в Vault
 
-Приложение использует External Secrets Operator для синхронизации секретов из HashiCorp Vault. Для работы необходимо создать секреты в Vault.
+Инструкция по созданию и обновлению секретов микросервиса в HashiCorp Vault. Основана на [DonInfrastructure README](https://github.com/opusdvs/DonInfrastructure/blob/main/README.md). Приложение использует **Vault Secrets Operator** (VSO) для синхронизации секретов из Vault в Kubernetes.
 
-### Предварительные требования
+### Предварительные условия
 
-1. Установлен и настроен HashiCorp Vault
-2. Установлен External Secrets Operator в кластере Kubernetes
-3. Создан ClusterSecretStore для подключения к Vault (см. `.helm/donweather-ms-weather/templates/clustersecretstore-vault-example.yaml`)
+- Vault развёрнут в **Services кластере** и разблокирован (unsealed).
+- Vault Secrets Operator в **Dev кластере** настроен и подключён к Vault по адресу `https://vault.buildbyte.ru` (раздел 8 DonInfrastructure).
+- Kubernetes auth в Vault для Dev кластера настроен (mount `kubernetes-dev`, роль `vault-secrets-operator`).
+- У вас есть root token Vault или токен с правами на запись в `secret/`.
 
-### Создание секретов в Vault (KV v2)
+### Структура секрета в Vault
 
-Микросервис использует следующие секреты из Vault:
+Микросервис использует **один** секрет в Vault (KV v2) по пути **`donweather`** (mount `secret`).  
+Vault Secrets Operator синхронизирует все ключи из этого пути в Kubernetes Secret с тем же набором ключей.
 
-1. **DB_PASSWORD** - пароль для подключения к PostgreSQL
-2. **DB_USER** - пользователь для подключения к PostgreSQL
-3. **DB_HOST** - хост базы данных PostgreSQL
-4. **DB_PORT** - порт базы данных PostgreSQL
-5. **DB_NAME** - имя базы данных PostgreSQL
-6. **CORS_ORIGIN** - разрешенные источники для CORS
-7. **WEATHER_API_KEY** - API ключ для Weather API
+**Обязательные ключи в секрете Vault:**
 
-### Создание секретов через kubectl
+| Ключ в Vault      | Назначение                          | Переменная в поде   |
+|-------------------|-------------------------------------|---------------------|
+| `db-password`     | Пароль пользователя БД              | `DB_PASSWORD`       |
+| `db-user`         | Имя пользователя БД                 | `DB_USER`           |
+| `db-host`         | Хост PostgreSQL                     | `DB_HOST`           |
+| `db-port`         | Порт PostgreSQL (например `5432`)   | `DB_PORT`           |
+| `db-name`         | Имя базы данных                     | `DB_NAME`           |
+| `weather-api-key` | API-ключ внешнего сервиса погоды    | `WEATHER_API_KEY`   |
+| `cors-origin`     | Разрешённый CORS origin (например `*`) | `CORS_ORIGIN`   |
 
-Если Vault развернут в Kubernetes кластере, используйте kubectl для выполнения команд Vault CLI:
+Имена ключей в Vault должны совпадать с указанными — их ожидает Helm chart и Deployment.
 
-**1. Получите токен Vault:**
-
-```bash
-# Получите root token из Secret
-VAULT_TOKEN=$(kubectl get secret vault-unseal-keys -n vault -o jsonpath='{.data.vault-root}' | base64 -d)
-```
-
-**2. Включите KV v2 секретный движок (если еще не включен):**
+### 1. Подготовка переменных
 
 ```bash
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault secrets enable -path=secret kv-v2
-"
+# Переключиться на Services кластер (здесь установлен Vault)
+export KUBECONFIG=$HOME/kubeconfig-services-cluster.yaml
+
+# Токен Vault (root или с правами на запись в secret/)
+export VAULT_ADDR="http://127.0.0.1:8200"
+export VAULT_TOKEN=$(cat /tmp/vault-root-token.txt)
+# Если root token в другом месте — укажите свой путь
 ```
 
-**3. Создайте секреты:**
+### 2. Проверка KV v2
+
+Убедитесь, что секретный движок KV v2 включён по пути `secret`:
 
 ```bash
-# Создайте секрет для DB_PASSWORD
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/db-password \
-  password='your-db-password'
-"
-
-# Создайте секрет для DB_USER
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/db-user \
-  user='your-db-user'
-"
-
-# Создайте секрет для DB_HOST
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/db-host \
-  host='postgres'
-"
-
-# Создайте секрет для DB_PORT
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/db-port \
-  port='5432'
-"
-
-# Создайте секрет для DB_NAME
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/db-name \
-  name='weather'
-"
-
-# Создайте секрет для CORS_ORIGIN
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/cors-origin \
-  origin='*'
-"
-
-# Создайте секрет для WEATHER_API_KEY
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather/weather-api-key \
-  api-key='your-weather-api-key-here'
+vault secrets enable -version=2 -path=secret kv 2>&1 || echo 'Секретный движок уже включен'
 "
 ```
 
-**Примечание:** Если ваш pod Vault имеет другое имя или находится в другом namespace, замените `vault-0` и `vault` на соответствующие значения.
+### 3. Создание секрета donweather
 
-### Проверка секретов
-
-После создания секретов проверьте их наличие через kubectl:
+Подставьте свои значения вместо плейсхолдеров. Для паролей и токенов используйте одинарные кавычки, чтобы избежать интерпретации спецсимволов shell.
 
 ```bash
-# Получите токен Vault
-VAULT_TOKEN=$(kubectl get secret vault-unseal-keys -n vault -o jsonpath='{.data.vault-root}' | base64 -d)
-
-# Проверка секрета DB_PASSWORD
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/db-password
-"
-
-# Проверка секрета DB_USER
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/db-user
-"
-
-# Проверка секрета DB_HOST
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/db-host
-"
-
-# Проверка секрета DB_PORT
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/db-port
-"
-
-# Проверка секрета DB_NAME
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/db-name
-"
-
-# Проверка секрета CORS_ORIGIN
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/cors-origin
-"
-
-# Проверка секрета WEATHER_API_KEY
-kubectl exec -it vault-0 -n vault -- sh -c "
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather/weather-api-key
+vault kv put secret/donweather \
+  db-password='<ПАРОЛЬ_ПОЛЬЗОВАТЕЛЯ_БД>' \
+  db-user='<ИМЯ_ПОЛЬЗОВАТЕЛЯ_БД>' \
+  db-host='<ХОСТ_POSTGRESQL>' \
+  db-port='5432' \
+  db-name='weather' \
+  weather-api-key='<API_КЛЮЧ_ПОГОДЫ>' \
+  cors-origin='*'
 "
 ```
 
-### Настройка Helm Chart
+**Пример для dev (PostgreSQL в Services по LoadBalancer):**
 
-После создания секретов в Vault, включите ExternalSecret в `values.yaml`:
+```bash
+# Предполагается, что внешний IP PostgreSQL уже известен
+POSTGRES_HOST='<ВНЕШНИЙ_IP_POSTGRESQL>'  # из kubectl get svc postgresql-external -n postgresql
 
-```yaml
-externalSecret:
-  enabled: true
-  secretStoreRef:
-    name: "vault-backend"  # Имя вашего ClusterSecretStore
-    kind: "ClusterSecretStore"
-  secrets:
-    dsn:
-      key: "secret/data/donweather/dsn"
-      property: "dsn"
-    weatherApiKey:
-      key: "secret/data/donweather/weather-api-key"
-      property: "api-key"
-    corsOrigin:
-      key: "secret/data/donweather/cors-origin"
-      property: "origin"
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv put secret/donweather \
+  db-password='<ПАРОЛЬ>' \
+  db-user='myuser' \
+  db-host='$POSTGRES_HOST' \
+  db-port='5432' \
+  db-name='weather' \
+  weather-api-key='<ВАШ_WEATHER_API_KEY>' \
+  cors-origin='https://api.donweather.dev.buildbyte.ru'
+"
 ```
 
-### Обновление секретов
+### 4. Проверка записи
 
-Для обновления секретов в Vault используйте те же команды, что и для создания. External Secrets Operator автоматически синхронизирует изменения в соответствии с настройкой `refreshInterval` (по умолчанию 1 час).
+```bash
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv get secret/donweather
+"
+```
+
+В выводе должны быть все семь ключей (значения показываются в открытом виде — не логируйте вывод с реальными паролями).
+
+Проверка в формате JSON (для отладки):
+
+```bash
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv get -format=json secret/donweather | jq '.data.data | keys'
+"
+```
+
+Должен вывести список ключей: `["cors-origin", "db-host", "db-name", "db-password", "db-port", "db-user", "weather-api-key"]`.
+
+### 5. Синхронизация в Kubernetes (Dev кластер)
+
+Секрет в Kubernetes создаётся **Vault Secrets Operator** на основе ресурса `VaultStaticSecret` из Helm chart. После записи в Vault:
+
+1. Убедитесь, что приложение развёрнуто в Dev кластере с включённым `vaultSecretOperator.enabled: true` и корректным `vaultAuthRef` (например, `vault-secrets-operator/default` или `vault-auth` в namespace приложения).
+2. Оператор периодически синхронизирует секрет (по умолчанию `refreshAfter: 1h`). Чтобы не ждать:
+   - можно перезапустить поды Vault Secrets Operator в namespace `vault-secrets-operator`, или
+   - временно изменить `refreshAfter` в values и пересинхронизировать приложение через Argo CD / Helm.
+
+Проверка в Dev кластере:
+
+```bash
+export KUBECONFIG=$HOME/kubeconfig-dev-cluster.yaml
+
+# Статус VaultStaticSecret (namespace — тот, куда ставите чарт, например donweather)
+kubectl get vaultstaticsecret -n donweather
+kubectl describe vaultstaticsecret donweather-ms-weather-vault-secret -n donweather
+
+# Имя итогового Secret задаётся в chart: <release>-secret
+kubectl get secret donweather-ms-weather-secret -n donweather
+kubectl get secret donweather-ms-weather-secret -n donweather -o jsonpath='{.data}' | jq 'keys'
+```
+
+### 6. Обновление секрета
+
+При изменении данных в Vault достаточно перезаписать путь `secret/donweather`:
+
+```bash
+# Те же переменные VAULT_ADDR и VAULT_TOKEN
+kubectl exec -it vault-0 -n vault -- sh -c "
+export VAULT_ADDR='http://127.0.0.1:8200'
+export VAULT_TOKEN='$VAULT_TOKEN'
+vault kv put secret/donweather \
+  db-password='<НОВЫЙ_ПАРОЛЬ>' \
+  db-user='myuser' \
+  db-host='<ХОСТ>' \
+  db-port='5432' \
+  db-name='weather' \
+  weather-api-key='<КЛЮЧ>' \
+  cors-origin='*'
+"
+```
+
+После обновления Vault оператор подтянет новые значения в течение интервала обновления. Чтобы поды приложения получили новые переменные окружения, перезапустите Deployment:
+
+```bash
+kubectl rollout restart deployment donweather-ms-weather -n donweather
+```
+
+### 7. Политика доступа Vault (Dev кластер)
+
+По инструкции DonInfrastructure для Dev кластера используется политика `vault-secrets-operator-dev-policy`, разрешающая чтение `secret/data/*` и `secret/metadata/*`. Путь `secret/donweather` попадает под эту политику — отдельная политика для donweather-ms-weather не требуется.
+
+Если вы настраиваете отдельную политику (например, только для пути donweather), минимальный фрагмент:
+
+```hcl
+path "secret/data/donweather" {
+  capabilities = ["read"]
+}
+path "secret/metadata/donweather" {
+  capabilities = ["read", "list"]
+}
+```
+
+### Краткий чек-лист
+
+- [ ] Vault разблокирован, KV v2 включён по пути `secret`
+- [ ] Секрет создан: `vault kv put secret/donweather` с ключами `db-password`, `db-user`, `db-host`, `db-port`, `db-name`, `weather-api-key`, `cors-origin`
+- [ ] Проверка: `vault kv get secret/donweather`
+- [ ] В Dev кластере развёрнут Helm chart с `vaultSecretOperator.enabled: true` и правильным `vaultAuthRef`
+- [ ] VaultStaticSecret в статусе Synced, Secret создан и поды читают актуальные переменные
+
+### Ссылки
+
+- [DonInfrastructure README](https://github.com/opusdvs/DonInfrastructure/blob/main/README.md) — общий порядок установки, Vault, VSO, Dev кластер
+- Раздел 8 DonInfrastructure — установка и настройка Vault Secrets Operator в Dev кластере, VaultConnection и VaultAuth
+- Раздел 8.1 DonInfrastructure — Kubernetes Auth в Vault для VSO (Services)
+- Разделы 8.2–8.4 DonInfrastructure — Kubernetes Auth для Dev кластера и создание VaultConnection/VaultAuth
 
 ## Лицензия
 
