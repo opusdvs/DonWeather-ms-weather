@@ -9,7 +9,7 @@ image:
 
 
 imagePullSecrets:
-  - name: docker-registry-credentials
+  - name: registry-docker-registry
 nameOverride: ""
 fullnameOverride: ""
 
