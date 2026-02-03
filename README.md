@@ -217,6 +217,8 @@ vault secrets enable -version=2 -path=secret kv 2>&1 || echo 'Секретный
 
 ### 3. Создание секрета donweather-ms-weather
 
+**Если Vault Secrets Operator выдаёт ошибку** `Failed to read Vault secret: empty response from Vault, path="secret/data/donweather-ms-weather"` — в Vault ещё нет секрета по этому пути. Создайте его командами ниже (шаг 1 — подготовка переменных, затем `vault kv put`).
+
 Подставьте свои значения вместо плейсхолдеров. Для паролей и токенов используйте одинарные кавычки, чтобы избежать интерпретации спецсимволов shell.
 
 ```bash

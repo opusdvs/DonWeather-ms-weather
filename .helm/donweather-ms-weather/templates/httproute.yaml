@@ -33,6 +33,19 @@ spec:
     {{- if and .rules (gt (len .rules) 0) }}
     {{- toYaml .rules | nindent 4 }}
     {{- else }}
+    {{- if and .rootRedirect .rootRedirect.enabled }}
+    - matches:
+        - path:
+            type: Exact
+            value: "/"
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            path:
+              type: ReplaceFullPath
+              value: {{ .rootRedirect.toPath | default "/health/ready" | quote }}
+            statusCode: {{ .rootRedirect.statusCode | default 302 }}
+    {{- end }}
     - matches:
         - path:
             type: PathPrefix

@@ -44,6 +44,11 @@ httpRoute:
   hostnames:
     - api.donweather.dev.buildbyte.ru
   pathPrefix: /
+  # Редирект с корня "/" на другой путь (приложение не обрабатывает GET /, иначе будет 404).
+  rootRedirect:
+    enabled: true
+    toPath: /health/ready
+    statusCode: 302
   # Если нужно — можно передать полный массив spec.rules (как в Gateway API).
   rules: []
 
