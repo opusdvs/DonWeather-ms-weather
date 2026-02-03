@@ -7,6 +7,22 @@ pipeline {
 apiVersion: v1
 kind: Pod
 spec:
+  nodeSelector:
+    jenkins.io/agent: dedicated
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: jenkins.io/agent
+                operator: In
+                values:
+                  - dedicated
+  tolerations:
+    - key: jenkins.io/agent
+      operator: Equal
+      value: dedicated
+      effect: NoSchedule
   containers:
   - name: go
     image: golang:1.24-alpine
