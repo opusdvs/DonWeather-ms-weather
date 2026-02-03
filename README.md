@@ -80,20 +80,12 @@ curl -X POST "http://localhost:8080/weather/register" \
 ### Порядок развёртывания
 
 1. **Секреты в Vault** — создать секрет `secret/donweather-ms-weather` (см. подраздел «Секреты в Vault» ниже).
-2. **База данных** — создать БД и пользователя в PostgreSQL, выполнить миграции (аналогично п. 3 раздела «Установка (локальная)», с учётом хоста/порта для кластера).
+2. **База данных** — создать БД и пользователя, выполнить миграции (см. подраздел «База данных» ниже).
 3. **Application** — применить манифест из репозитория:
    ```bash
    export KUBECONFIG=$HOME/kubeconfig-services-cluster.yaml
    kubectl apply -f .argocd/application.yaml
    ```
-4. **Проверка:**
-   ```bash
-   kubectl get application donweather-ms-weather-dev -n argocd
-   export KUBECONFIG=$HOME/kubeconfig-dev-cluster.yaml
-   kubectl get pods,svc -n donweather -l app.kubernetes.io/name=donweather-ms-weather
-   kubectl get httproute -n donweather
-   ```
-   После синхронизации сервис доступен по адресу: **https://api.donweather.dev.buildbyte.ru** (при настроенных DNS и Gateway).
 
 ### Секреты в Vault
 
@@ -139,6 +131,46 @@ curl -X POST "http://localhost:8080/weather/register" \
 
 5. Обновление — снова `vault kv put secret/donweather-ms-weather ...`. После смены секрета при необходимости: `kubectl rollout restart deployment donweather-ms-weather -n donweather`.
 
+### База данных
+
+PostgreSQL для Dev может быть в Services кластере (доступ по LoadBalancer или port-forward). Пользователь, пароль и имя БД должны совпадать с теми, что записаны в секрете Vault (`db-user`, `db-password`, `db-name`).
+
+1. Подключиться к PostgreSQL (подставьте хост/порт из секрета или из окружения кластера):
+   ```bash
+   # Например, через port-forward к сервису в Services кластере
+   kubectl port-forward -n postgresql svc/postgresql 5432:5432
+   psql -h localhost -U postgres -d postgres
+   ```
+
+2. Создать пользователя и базу (имя пользователя и пароль — как в ключах `db-user` и `db-password` в Vault; имя базы — как `db-name`, обычно `weather`):
+   ```sql
+   CREATE USER weather WITH PASSWORD 'ваш_пароль';
+   CREATE DATABASE weather OWNER weather;
+   \c weather
+   GRANT USAGE, CREATE ON SCHEMA public TO weather;
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO weather;
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO weather;
+   \q
+   ```
+
+3. Выполнить миграции (хост, порт, пользователь, пароль, база — из секрета Vault):
+   ```bash
+   migrate -path migrations -database "postgres://<db-user>:<db-password>@<db-host>:<db-port>/weather?sslmode=disable" up
+   ```
+   Или через psql:
+   ```bash
+   psql -h <db-host> -p <db-port> -U <db-user> -d weather -f migrations/000001_create_weather.up.sql
+   ```
+   Пароль можно передать переменной: `PGPASSWORD='<пароль>' psql ...`.
+
+### Application
+
+Применить манифест (из корня клонированного репозитория):
+
+```bash
+kubectl apply -f .argocd/application.yaml
+```
+
 ### Структура проекта
 
 - `cmd/main.go` — точка входа
@@ -148,10 +180,6 @@ curl -X POST "http://localhost:8080/weather/register" \
 - `migrations/` — миграции БД
 - `.argocd/application.yaml` — манифест Argo CD Application
 - `.helm/donweather-ms-weather/` — Helm chart
-
-### Разработка
-
-Перед запуском убедитесь, что PostgreSQL доступен и миграции применены.
 
 ### Лицензия
 
