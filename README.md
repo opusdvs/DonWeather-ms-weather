@@ -177,6 +177,20 @@ Vault Secrets Operator синхронизирует все ключи из эт�
 
 Имена ключей в Vault должны совпадать с указанными — их ожидает Helm chart и Deployment.
 
+### VaultStaticSecret в Helm chart
+
+Для синхронизации этих секретов из Vault в Kubernetes **VaultStaticSecret создаётся самим Helm chart**. Отдельно применять манифест VaultStaticSecret не нужно.
+
+- **Шаблон:** `.helm/donweather-ms-weather/templates/vaultstaticsecret.yaml`
+- **Включение:** при развёртывании чарта с `vaultSecretOperator.enabled: true` в `values.yaml` создаётся ресурс `VaultStaticSecret`, который указывает на путь `secret/donweather` в Vault и создаёт Secret с именем `<release>-secret` в том же namespace.
+- **Параметры** (в `values.yaml`, секция `vaultSecretOperator`):
+  - `vaultAuthRef` — имя VaultAuth (например, `vault-secrets-operator/default` или `vault-auth`)
+  - `mount` — mount KV в Vault (по умолчанию `secret`)
+  - `path` — путь к секрету (по умолчанию `donweather`)
+  - `refreshAfter` — интервал обновления (по умолчанию `1h`)
+
+Порядок действий: сначала создайте секрет в Vault (шаги ниже), затем разверните или обновите приложение через Helm/Argo CD — VaultStaticSecret будет создан чартом, и Vault Secrets Operator начнёт синхронизацию.
+
 ### 1. Подготовка переменных
 
 ```bash
@@ -266,9 +280,9 @@ vault kv get -format=json secret/donweather | jq '.data.data | keys'
 
 ### 5. Синхронизация в Kubernetes (Dev кластер)
 
-Секрет в Kubernetes создаётся **Vault Secrets Operator** на основе ресурса `VaultStaticSecret` из Helm chart. После записи в Vault:
+Секрет в Kubernetes создаётся **Vault Secrets Operator** на основе ресурса **VaultStaticSecret, который создаётся Helm chart** при установке/обновлении с `vaultSecretOperator.enabled: true` (см. раздел «VaultStaticSecret в Helm chart» выше). После записи секрета в Vault:
 
-1. Убедитесь, что приложение развёрнуто в Dev кластере с включённым `vaultSecretOperator.enabled: true` и корректным `vaultAuthRef` (например, `vault-secrets-operator/default` или `vault-auth` в namespace приложения).
+1. Разверните или обновите приложение в Dev кластере через Helm или Argo CD — чарт создаст ресурс `VaultStaticSecret`. Убедитесь, что в values включено `vaultSecretOperator.enabled: true` и задан корректный `vaultAuthRef` (например, `vault-secrets-operator/default` или `vault-auth` в namespace приложения).
 2. Оператор периодически синхронизирует секрет (по умолчанию `refreshAfter: 1h`). Чтобы не ждать:
    - можно перезапустить поды Vault Secrets Operator в namespace `vault-secrets-operator`, или
    - временно изменить `refreshAfter` в values и пересинхронизировать приложение через Argo CD / Helm.
