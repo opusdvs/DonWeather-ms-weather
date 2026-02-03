@@ -18,7 +18,7 @@ spec:
       mountPath: /home/jenkins/agent
     resources:
       requests:
-        memory: "512Mi"
+        memory: "256Mi"
         cpu: "500m"
       limits:
         memory: "2Gi"
@@ -38,7 +38,7 @@ spec:
       mountPath: /home/jenkins/agent
     resources:
       requests:
-        memory: "512Mi"
+        memory: "256Mi"
         cpu: "500m"
       limits:
         memory: "2Gi"
