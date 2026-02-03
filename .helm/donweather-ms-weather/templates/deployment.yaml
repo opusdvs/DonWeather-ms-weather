@@ -94,7 +94,7 @@ spec:
                   key: weather-api-key
             - name: CORS_ORIGIN
               valueFrom:
-                {{- if .Values.externalSecret.enabled }}
+                {{- if .Values.vaultSecretOperator.enabled }}
                 secretKeyRef:
                   name: {{ include "donweather-ms-weather.fullname" . }}-secret
                   key: cors-origin

@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "donweather-ms-weather.labels" . | nindent 4 }}
 data:
-  {{- if not .Values.externalSecret.enabled }}
+  {{- if not .Values.vaultSecretOperator.enabled }}
   cors-origin: {{ .Values.env.corsOrigin | quote }}
   {{- end }}
   env: {{ .Values.env.env | quote }}

@@ -92,40 +92,17 @@ database:
 # Weather API Key (will be stored in Secret)
 weatherApiKey: ""
 
-# ExternalSecret configuration
-externalSecret:
+# Vault Secrets Operator (HashiCorp VSO)
+# Секрет создаётся оператором из одного пути Vault KV. В пути должны быть ключи:
+# db-password, db-user, db-host, db-port, db-name, weather-api-key, cors-origin
+vaultSecretOperator:
   enabled: true
-  refreshInterval: "1h"
-  secretStoreRef:
-    name: "vault"  # Имя ClusterSecretStore (для Vault)
-    kind: "ClusterSecretStore"  # ClusterSecretStore для кластерного доступа
-  target:
-    creationPolicy: "Owner"  # Owner, Merge, None
-  secrets:
-    # Для Vault KV v2:
-    #   - путь: secret/data/path/to/secret (обязателен префикс /data)
-    #   - property: имя поля в JSON объекте секрета
-    dbPassword:
-      key: "secret/data/donweather/db-password"  # Путь к секрету в Vault (KV v2)
-      property: "password"  # Имя свойства в секрете
-    dbUser:
-      key: "secret/data/donweather/db-user"  # Путь к секрету в Vault (KV v2)
-      property: "user"
-    dbHost:
-      key: "secret/data/donweather/db-host"  # Путь к секрету в Vault (KV v2)
-      property: "host"
-    dbPort:
-      key: "secret/data/donweather/db-port"  # Путь к секрету в Vault (KV v2)
-      property: "port"
-    dbName:
-      key: "secret/data/donweather/db-name"  # Путь к секрету в Vault (KV v2)
-      property: "name"
-    weatherApiKey:
-      key: "secret/data/donweather/weather-api-key"  # Путь к секрету в Vault (KV v2)
-      property: "api-key"  # Имя свойства в секрете
-    corsOrigin:
-      key: "secret/data/donweather/cors-origin"  # Путь к секрету в Vault (KV v2)
-      property: "origin"  # Имя свойства в секрете
+  vaultAuthRef: "vault-auth"  # имя VaultAuth в том же namespace или namespace/name
+  mount: "secret"            # mount KV engine в Vault
+  path: "donweather"         # путь к секрету (все ключи из этого пути попадут в K8s Secret)
+  type: "kv-v2"
+  refreshAfter: "1h"
+  # version: 2  # опционально, для kv-v2
 
 # Health check configuration
 livenessProbe:
