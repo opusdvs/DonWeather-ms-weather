@@ -135,6 +135,62 @@ curl -X POST "http://localhost:8080/weather/register" \
   -d '{"q": "Amsterdam", "lang": "nl", "days": "3"}'
 ```
 
+## Развёртывание приложения (Dev кластер)
+
+Инструкция по развёртыванию микросервиса в Dev кластере через Argo CD в соответствии с DonInfrastructure.
+
+### Предварительные условия
+
+- **Dev кластер** развёрнут и добавлен в Argo CD.
+- **AppProject** `dev-microservices` создан в Argo CD.
+- В Dev кластере установлены: **Gateway API** (NGINX Gateway Fabric), **cert-manager**, **Gateway** `dev-gateway`, **Vault Secrets Operator** с VaultConnection/VaultAuth к Vault в Services кластере.
+- В namespace **donweather** Dev кластера создан секрет для доступа к приватному Docker Registry (VaultStaticSecret `registry-docker-registry`).
+- **Vault** в Services кластере разблокирован; Kubernetes auth для Dev кластера настроен (mount `kubernetes-dev`, роль `vault-secrets-operator`).
+
+### Порядок развёртывания
+
+Развёртывание Application выполняется **после** создания секретов в Vault и базы данных.
+
+1. **Секреты в Vault**  
+   Создайте секрет по пути `secret/donweather-ms-weather` в Vault с ключами: `db-password`, `db-user`, `db-host`, `db-port`, `db-name`, `weather-api-key`, `cors-origin`.  
+   Подробно — в разделе «Заведение секретов в Vault» ниже.
+
+2. **База данных**  
+   В PostgreSQL (Services кластер или доступном из Dev) создайте БД и пользователя, выполните миграции.  
+   Подробно — в разделе «Создание базы данных» выше.
+
+3. **Развёртывание Argo CD Application**  
+   Манифест Application лежит в репозитории в папке `.argocd`. После создания секретов и БД примените его к кластеру, где запущен Argo CD (обычно Services):
+
+```bash
+export KUBECONFIG=$HOME/kubeconfig-services-cluster.yaml
+kubectl apply -f .argocd/application.yaml
+```
+
+Если репозиторий клонирован в другую директорию, укажите полный путь к файлу:
+
+```bash
+kubectl apply -f /path/to/DonWeather-ms-weather/.argocd/application.yaml
+```
+
+4. **Проверка**
+
+```bash
+# Статус Application (Services кластер)
+kubectl get application donweather-ms-weather-dev -n argocd
+kubectl get application donweather-ms-weather-dev -n argocd -o jsonpath='{.status.sync.status}' && echo
+kubectl get application donweather-ms-weather-dev -n argocd -o jsonpath='{.status.health.status}' && echo
+
+# Поды и сервис (Dev кластер)
+export KUBECONFIG=$HOME/kubeconfig-dev-cluster.yaml
+kubectl get pods,svc -n donweather -l app.kubernetes.io/name=donweather-ms-weather
+
+# HTTPRoute (Dev кластер)
+kubectl get httproute -n donweather
+```
+
+После успешной синхронизации сервис доступен по адресу (если DNS и Gateway настроены): **https://api.donweather.dev.buildbyte.ru**
+
 ## Структура проекта
 
 * `cmd/main.go` - Точка входа приложения
@@ -149,12 +205,12 @@ curl -X POST "http://localhost:8080/weather/register" \
 
 ## Заведение секретов в Vault
 
-Инструкция по созданию и обновлению секретов микросервиса в HashiCorp Vault. Основана на [DonInfrastructure README](https://github.com/opusdvs/DonInfrastructure/blob/main/README.md). Приложение использует **Vault Secrets Operator** (VSO) для синхронизации секретов из Vault в Kubernetes.
+Инструкция по созданию и обновлению секретов микросервиса в HashiCorp Vault. Основана на DonInfrastructure README. Приложение использует **Vault Secrets Operator** (VSO) для синхронизации секретов из Vault в Kubernetes.
 
 ### Предварительные условия
 
 - Vault развёрнут в **Services кластере** и разблокирован (unsealed).
-- Vault Secrets Operator в **Dev кластере** настроен и подключён к Vault по адресу `https://vault.buildbyte.ru` (раздел 8 DonInfrastructure).
+- Vault Secrets Operator в **Dev кластере** настроен и подключён к Vault (раздел 8 DonInfrastructure).
 - Kubernetes auth в Vault для Dev кластера настроен (mount `kubernetes-dev`, роль `vault-secrets-operator`).
 - У вас есть root token Vault или токен с правами на запись в `secret/`.
 
@@ -351,13 +407,6 @@ path "secret/metadata/donweather-ms-weather" {
 - [ ] Проверка: `vault kv get secret/donweather-ms-weather`
 - [ ] В Dev кластере развёрнут Helm chart с `vaultSecretOperator.enabled: true` и правильным `vaultAuthRef`
 - [ ] VaultStaticSecret в статусе Synced, Secret создан и поды читают актуальные переменные
-
-### Ссылки
-
-- [DonInfrastructure README](https://github.com/opusdvs/DonInfrastructure/blob/main/README.md) — общий порядок установки, Vault, VSO, Dev кластер
-- Раздел 8 DonInfrastructure — установка и настройка Vault Secrets Operator в Dev кластере, VaultConnection и VaultAuth
-- Раздел 8.1 DonInfrastructure — Kubernetes Auth в Vault для VSO (Services)
-- Разделы 8.2–8.4 DonInfrastructure — Kubernetes Auth для Dev кластера и создание VaultConnection/VaultAuth
 
 ## Лицензия
 
