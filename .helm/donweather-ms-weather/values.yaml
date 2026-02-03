@@ -97,9 +97,9 @@ weatherApiKey: ""
 # db-password, db-user, db-host, db-port, db-name, weather-api-key, cors-origin
 vaultSecretOperator:
   enabled: true
-  vaultAuthRef: "vault-auth"  # имя VaultAuth в том же namespace или namespace/name
+  vaultAuthRef: "vault-secrets-operator/default"  # имя VaultAuth в том же namespace или namespace/name
   mount: "secret"            # mount KV engine в Vault
-  path: "donweather"         # путь к секрету (все ключи из этого пути попадут в K8s Secret)
+  path: "donweather-ms-weather"  # путь к секрету в Vault (все ключи из этого пути попадут в K8s Secret)
   type: "kv-v2"
   refreshAfter: "1h"
   # version: 2  # опционально, для kv-v2

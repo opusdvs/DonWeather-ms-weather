@@ -160,7 +160,7 @@ curl -X POST "http://localhost:8080/weather/register" \
 
 ### Структура секрета в Vault
 
-Микросервис использует **один** секрет в Vault (KV v2) по пути **`donweather`** (mount `secret`).  
+Микросервис использует **один** секрет в Vault (KV v2) по пути **`donweather-ms-weather`** (mount `secret`).  
 Vault Secrets Operator синхронизирует все ключи из этого пути в Kubernetes Secret с тем же набором ключей.
 
 **Обязательные ключи в секрете Vault:**
@@ -182,11 +182,11 @@ Vault Secrets Operator синхронизирует все ключи из эт�
 Для синхронизации этих секретов из Vault в Kubernetes **VaultStaticSecret создаётся самим Helm chart**. Отдельно применять манифест VaultStaticSecret не нужно.
 
 - **Шаблон:** `.helm/donweather-ms-weather/templates/vaultstaticsecret.yaml`
-- **Включение:** при развёртывании чарта с `vaultSecretOperator.enabled: true` в `values.yaml` создаётся ресурс `VaultStaticSecret`, который указывает на путь `secret/donweather` в Vault и создаёт Secret с именем `<release>-secret` в том же namespace.
+- **Включение:** при развёртывании чарта с `vaultSecretOperator.enabled: true` в `values.yaml` создаётся ресурс `VaultStaticSecret`, который указывает на путь `secret/donweather-ms-weather` в Vault и создаёт Secret с именем `<release>-secret` в том же namespace.
 - **Параметры** (в `values.yaml`, секция `vaultSecretOperator`):
   - `vaultAuthRef` — имя VaultAuth (например, `vault-secrets-operator/default` или `vault-auth`)
   - `mount` — mount KV в Vault (по умолчанию `secret`)
-  - `path` — путь к секрету (по умолчанию `donweather`)
+  - `path` — путь к секрету (по умолчанию `donweather-ms-weather`)
   - `refreshAfter` — интервал обновления (по умолчанию `1h`)
 
 Порядок действий: сначала создайте секрет в Vault (шаги ниже), затем разверните или обновите приложение через Helm/Argo CD — VaultStaticSecret будет создан чартом, и Vault Secrets Operator начнёт синхронизацию.
@@ -215,7 +215,7 @@ vault secrets enable -version=2 -path=secret kv 2>&1 || echo 'Секретный
 "
 ```
 
-### 3. Создание секрета donweather
+### 3. Создание секрета donweather-ms-weather
 
 Подставьте свои значения вместо плейсхолдеров. Для паролей и токенов используйте одинарные кавычки, чтобы избежать интерпретации спецсимволов shell.
 
@@ -223,7 +223,7 @@ vault secrets enable -version=2 -path=secret kv 2>&1 || echo 'Секретный
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather \
+vault kv put secret/donweather-ms-weather \
   db-password='<ПАРОЛЬ_ПОЛЬЗОВАТЕЛЯ_БД>' \
   db-user='<ИМЯ_ПОЛЬЗОВАТЕЛЯ_БД>' \
   db-host='<ХОСТ_POSTGRESQL>' \
@@ -243,7 +243,7 @@ POSTGRES_HOST='<ВНЕШНИЙ_IP_POSTGRESQL>'  # из kubectl get svc postgresq
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather \
+vault kv put secret/donweather-ms-weather \
   db-password='<ПАРОЛЬ>' \
   db-user='myuser' \
   db-host='$POSTGRES_HOST' \
@@ -260,7 +260,7 @@ vault kv put secret/donweather \
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get secret/donweather
+vault kv get secret/donweather-ms-weather
 "
 ```
 
@@ -272,7 +272,7 @@ vault kv get secret/donweather
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv get -format=json secret/donweather | jq '.data.data | keys'
+vault kv get -format=json secret/donweather-ms-weather | jq '.data.data | keys'
 "
 ```
 
@@ -303,14 +303,14 @@ kubectl get secret donweather-ms-weather-secret -n donweather -o jsonpath='{.dat
 
 ### 6. Обновление секрета
 
-При изменении данных в Vault достаточно перезаписать путь `secret/donweather`:
+При изменении данных в Vault достаточно перезаписать путь `secret/donweather-ms-weather`:
 
 ```bash
 # Те же переменные VAULT_ADDR и VAULT_TOKEN
 kubectl exec -it vault-0 -n vault -- sh -c "
 export VAULT_ADDR='http://127.0.0.1:8200'
 export VAULT_TOKEN='$VAULT_TOKEN'
-vault kv put secret/donweather \
+vault kv put secret/donweather-ms-weather \
   db-password='<НОВЫЙ_ПАРОЛЬ>' \
   db-user='myuser' \
   db-host='<ХОСТ>' \
@@ -329,15 +329,15 @@ kubectl rollout restart deployment donweather-ms-weather -n donweather
 
 ### 7. Политика доступа Vault (Dev кластер)
 
-По инструкции DonInfrastructure для Dev кластера используется политика `vault-secrets-operator-dev-policy`, разрешающая чтение `secret/data/*` и `secret/metadata/*`. Путь `secret/donweather` попадает под эту политику — отдельная политика для donweather-ms-weather не требуется.
+По инструкции DonInfrastructure для Dev кластера используется политика `vault-secrets-operator-dev-policy`, разрешающая чтение `secret/data/*` и `secret/metadata/*`. Путь `secret/donweather-ms-weather` попадает под эту политику — отдельная политика для donweather-ms-weather не требуется.
 
-Если вы настраиваете отдельную политику (например, только для пути donweather), минимальный фрагмент:
+Если вы настраиваете отдельную политику (например, только для пути donweather-ms-weather), минимальный фрагмент:
 
 ```hcl
-path "secret/data/donweather" {
+path "secret/data/donweather-ms-weather" {
   capabilities = ["read"]
 }
-path "secret/metadata/donweather" {
+path "secret/metadata/donweather-ms-weather" {
   capabilities = ["read", "list"]
 }
 ```
@@ -345,8 +345,8 @@ path "secret/metadata/donweather" {
 ### Краткий чек-лист
 
 - [ ] Vault разблокирован, KV v2 включён по пути `secret`
-- [ ] Секрет создан: `vault kv put secret/donweather` с ключами `db-password`, `db-user`, `db-host`, `db-port`, `db-name`, `weather-api-key`, `cors-origin`
-- [ ] Проверка: `vault kv get secret/donweather`
+- [ ] Секрет создан: `vault kv put secret/donweather-ms-weather` с ключами `db-password`, `db-user`, `db-host`, `db-port`, `db-name`, `weather-api-key`, `cors-origin`
+- [ ] Проверка: `vault kv get secret/donweather-ms-weather`
 - [ ] В Dev кластере развёрнут Helm chart с `vaultSecretOperator.enabled: true` и правильным `vaultAuthRef`
 - [ ] VaultStaticSecret в статусе Synced, Secret создан и поды читают актуальные переменные
 
