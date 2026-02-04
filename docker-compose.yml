@@ -25,6 +25,11 @@ services:
       - DSN=postgres://myuser:mypassword@postgres:5432/weather?sslmode=disable
       - CORS_ORIGIN=*
       - WEATHER_API_KEY=cd3200bf0f914528862150404260801
+      - DB_PASSWORD=mypassword
+      - DB_USER=myuser
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=weather
     networks:
       - weather_network
 

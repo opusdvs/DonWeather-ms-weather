@@ -21,11 +21,16 @@ type Weather struct {
 		Forecastday []struct {
 			Date string `json:"date"`
 			Day  struct {
-				Maxtemp_c float64 `json:"maxtemp_c"`
-				Condition struct {
+				Maxtemp_c   float64 `json:"maxtemp_c"`
+				AvgHumidity float64 `json:"avghumidity"`
+				MaxwindKph  float64 `json:"maxwind_kph"`
+				Condition   struct {
 					Text string `json:"text"`
 				} `json:"condition"`
 			} `json:"day"`
+			Hour []struct {
+				PressureMb float64 `json:"pressure_mb"`
+			} `json:"hour"`
 		} `json:"forecastday"`
 	} `json:"forecast"`
 }
