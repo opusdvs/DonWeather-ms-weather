@@ -31,47 +31,6 @@ service:
   port: 8080
   targetPort: 8080
 
-# HTTPRoute (Gateway API)
-# Имя listener'а должно совпадать с spec.listeners[].name в Gateway dev-gateway.
-# Для api.donweather.dev.buildbyte.ru в Gateway задан listener https-donweather-api.
-httpRoute:
-  enabled: true
-  annotations: {}
-  parentRefs:
-    - name: dev-gateway
-      namespace: default
-      sectionName: https-donweather-api
-  hostnames:
-    - api.donweather.dev.buildbyte.ru
-  pathPrefix: /
-  # Правила маршрутизации на разные сервисы по путям
-  # Если rules заданы, они используются вместо pathPrefix
-  # Использовать кастомные правила маршрутизации
-  useCustomRules: true
-  # Настройка путей маршрутизации
-  routes:
-    # Маршрут для georesolve сервиса
-    georesolve:
-      path: /weather/getCityByCoordinates  # Путь для маршрутизации на georesolve сервис
-      service:
-        name: donweather-ms-georesolve  # Имя сервиса georesolve (из другого Helm release или манифеста)
-        namespace: donweather  # namespace сервиса georesolve (по умолчанию тот же, что и текущий release)
-        port: 8080
-    # Маршрут для georesolve сервиса
-    weather:
-      path: /weather/register  # Путь для маршрутизации на georesolve сервис
-
-  redirectToHttps:
-    enabled: true
-    annotations: {}
-    parentRefs:
-      - name: dev-gateway
-        namespace: default
-        sectionName: http
-    statusCode: 301
-    scheme: https
-    port: 443
-
 resources:
   limits:
     cpu: 500m
