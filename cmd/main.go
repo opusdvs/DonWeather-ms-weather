@@ -86,7 +86,7 @@ func main() {
 	healthMux.HandleFunc("/health/ready", healthHandler.ReadinessProbe)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/weather/register", handler.Register)
+	mux.HandleFunc("/api/v1/weather", handler.Register)
 	handlerMiddleware := middleware.MiddlewareChain(mux,
 		middleware.MetricsMiddleware,
 		middleware.CorsMiddleware,

@@ -32,6 +32,46 @@ spec:
   rules:
     {{- if and .rules (gt (len .rules) 0) }}
     {{- toYaml .rules | nindent 4 }}
+    {{- else if .useCustomRules }}
+    {{- $routes := .routes }}
+    {{- if $routes.georesolve }}
+    {{- $georesolveRoute := $routes.georesolve }}
+    {{- $georesolveSvc := $georesolveRoute.service }}
+    {{- $georesolveNamespace := $georesolveSvc.namespace | default $.Release.Namespace }}
+    # Маршрут для {{ $georesolveRoute.path }} → georesolve сервис
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ $georesolveRoute.path | quote }}
+      backendRefs:
+        - kind: Service
+          name: {{ $georesolveSvc.name }}
+          {{- if ne $georesolveNamespace $.Release.Namespace }}
+          namespace: {{ $georesolveNamespace }}
+          {{- end }}
+          port: {{ $georesolveSvc.port }}
+    {{- end }}
+    {{- if $routes.weather }}
+    {{- $weatherRoute := $routes.weather }}
+    # Маршрут для {{ $weatherRoute.path }} → текущий сервис (donweather-ms-weather)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ $weatherRoute.path | quote }}
+      backendRefs:
+        - kind: Service
+          name: {{ $svcName }}
+          port: {{ $.Values.service.port }}
+    {{- end }}
+    # Остальные пути → текущий сервис (fallback)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - kind: Service
+          name: {{ $svcName }}
+          port: {{ $.Values.service.port }}
     {{- else }}
     {{- if and .rootRedirect .rootRedirect.enabled }}
     - matches:

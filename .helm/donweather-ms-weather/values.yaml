@@ -44,7 +44,22 @@ httpRoute:
   hostnames:
     - api.donweather.dev.buildbyte.ru
   pathPrefix: /
-  rules: []
+  # Правила маршрутизации на разные сервисы по путям
+  # Если rules заданы, они используются вместо pathPrefix
+  # Использовать кастомные правила маршрутизации
+  useCustomRules: true
+  # Настройка путей маршрутизации
+  routes:
+    # Маршрут для georesolve сервиса
+    georesolve:
+      path: /weather/getCityByCoordinates  # Путь для маршрутизации на georesolve сервис
+      service:
+        name: donweather-ms-georesolve  # Имя сервиса georesolve (из другого Helm release или манифеста)
+        namespace: donweather  # namespace сервиса georesolve (по умолчанию тот же, что и текущий release)
+        port: 8080
+    # Маршрут для georesolve сервиса
+    weather:
+      path: /weather/register  # Путь для маршрутизации на georesolve сервис
 
   redirectToHttps:
     enabled: true
