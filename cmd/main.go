@@ -89,7 +89,6 @@ func main() {
 	mux.HandleFunc("/api/v1/weather", handler.Register)
 	handlerMiddleware := middleware.MiddlewareChain(mux,
 		middleware.MetricsMiddleware,
-		middleware.CorsMiddleware,
 		middleware.LoggerMiddleware(logger),
 		middleware.TraceMiddleware,
 	)
