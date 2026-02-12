@@ -24,7 +24,24 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-
+  subscribe:
+    build: ../../DonWeather-ms-subscribe
+    container_name: subscribe_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - weather_network
+    environment:
+      - CORS_ORIGIN=*
+      - DB_PASSWORD=subscribe_password
+      - DB_USER=subscribe_user
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=subscribe
+    expose:
+      - "8080"
   weather:
     build: ../
     container_name: weather_app
@@ -36,7 +53,6 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      - DSN=postgres://postgres:mypassword@postgres:5432/weather?sslmode=disable
       - CORS_ORIGIN=*
       - WEATHER_API_KEY=cd3200bf0f914528862150404260801
       - DB_PASSWORD=mypassword
