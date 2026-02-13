@@ -8,7 +8,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mypassword
       POSTGRES_DB: weather
-      # Настройка локали для поддержки русского языка (C.UTF-8 - универсальная UTF-8 локаль)
       POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
       LC_ALL: C.UTF-8
       LANG: C.UTF-8
