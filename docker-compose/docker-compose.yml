@@ -23,6 +23,61 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+  nats:
+    image: nats:2.10-alpine
+    container_name: weather_nats
+    restart: unless-stopped
+    command: >
+      -js
+      -sd /data
+      -m 8222
+    volumes:
+      - natsdata:/data
+    networks:
+      - weather_network
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  watcher:
+    build: ../../DonWeather-ms-watcher
+    container_name: weather_watcher
+    restart: unless-stopped
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - weather_network
+    environment:
+      - WEATHER_API_URL=http://weather:8080/api/v1/weather
+      - NATS_HOST=nats
+      - REDIS_HOST=weather_redis
+      - REDIS_PORT=6379
+      - DB_PASSWORD=subscribe_password
+      - DB_USER=subscribe_user
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=subscribe
+    ports:
+      - "8084:8080"
+  redis:
+    image: redis:7-alpine
+    container_name: weather_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    networks:
+      - weather_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
   subscribe:
     build: ../../DonWeather-ms-subscribe
     container_name: subscribe_app
@@ -30,10 +85,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - weather_network
     environment:
       - CORS_ORIGIN=*
+      - REDIS_HOST=weather_redis
+      - REDIS_PORT=6379
+      - REDIS_TTL=10
       - DB_PASSWORD=subscribe_password
       - DB_USER=subscribe_user
       - DB_HOST=postgres
@@ -50,6 +110,10 @@ services:
       - "8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     environment:
       - CORS_ORIGIN=*
@@ -81,6 +145,22 @@ services:
       - DB_NAME=georesolve
     networks:
       - weather_network
+  telegram:
+    build: ../../DonWeather-ms-telegram
+    container_name: telegram_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - weather_network
+    environment:
+      - WEBHOOK_URL=https://grey-victorious-nonunderstandingly.ngrok-free.dev/api/v1/telegram/webhook
+      - TELEGRAM_BOT_TOKEN=8268167697:AAFIOmXkoATUqTFz6xMWCm4zpkXxQNsEMj0
+      - CORS_ORIGIN=*
+      - API_URL=http://subscribe_app:8080/api/v1/subscribe/create
+    expose:
+      - "8080"
   nginx:
     image: nginx:alpine
     container_name: weather_nginx
@@ -104,10 +184,20 @@ services:
       - nginx
     networks:
       - weather_network
-
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    restart: unless-stopped
+    networks:
+      - weather_network
+    environment:
+      - NGROK_AUTHTOKEN=39cLEaM6SL4C2FWlVbVCgNj8dpM_46fadh2uiM2kWHcR1cUWd
+    command: http telegram_app:8080 --log=stdout
 networks:
   weather_network:
     driver: bridge
 
 volumes:
   pgdata:
+  redisdata:
+  natsdata:
