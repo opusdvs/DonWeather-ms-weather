@@ -64,6 +64,19 @@ services:
       - DB_NAME=subscribe
     ports:
       - "8084:8080"
+  notification:
+    build: ../../DonWeather-ms-notification
+    container_name: weather_notification
+    restart: unless-stopped
+    depends_on:
+      nats:
+        condition: service_healthy
+      watcher:
+        condition: service_started
+    networks:
+      - weather_network
+    environment:
+      - NATS_HOST=nats
   redis:
     image: redis:7-alpine
     container_name: weather_redis
@@ -78,6 +91,8 @@ services:
       interval: 2s
       timeout: 3s
       retries: 10
+    ports:
+      - "6379:6379"
   subscribe:
     build: ../../DonWeather-ms-subscribe
     container_name: subscribe_app
@@ -152,13 +167,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      notification:
+        condition: service_started
     networks:
       - weather_network
     environment:
       - WEBHOOK_URL=https://grey-victorious-nonunderstandingly.ngrok-free.dev/api/v1/telegram/webhook
-      - TELEGRAM_BOT_TOKEN=8268167697:AAFIOmXkoATUqTFz6xMWCm4zpkXxQNsEMj0
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - CORS_ORIGIN=*
       - API_URL=http://subscribe_app:8080/api/v1/subscribe/create
+      - NATS_HOST=nats
+      - TELEGRAM_BOT_API_BASE_URL=https://api.telegram.org
     expose:
       - "8080"
   nginx:
